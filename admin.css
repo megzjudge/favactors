@@ -1,3 +1,5 @@
+[hidden]{ display: none !important; }
+
 .admin-body{
   overflow: auto;
   min-height: 100%;

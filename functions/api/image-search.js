@@ -1,7 +1,7 @@
 import { verifySession } from "../_lib/auth.js";
 
 export async function onRequestGet({ request, env }) {
-  if (!(await verifySession(request, env.SESSION_SECRET))) {
+  if (!(await verifySession(request, env.AUTH))) {
     return json({ error: "Unauthorized" }, 401);
   }
 

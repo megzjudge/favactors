@@ -50,8 +50,7 @@ Add an entry to `actors.json` (with a portrait in `images/`, or omit `photo` to 
 
 Requires these Cloudflare Pages environment variables (set as **Secrets** in the dashboard, not plaintext):
 
-- `ADMIN_PASSWORD` — the login password
-- `SESSION_SECRET` — random string used to sign the session cookie
+- `AUTH` — the login password (also used to sign the session cookie)
 - `BRAVE_API_KEY` — from the [Brave Search API](https://api.search.brave.com/)
 - `GITHUB_TOKEN` — a PAT (fine-grained, scoped to this repo, Contents: Read & write)
 

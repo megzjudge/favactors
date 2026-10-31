@@ -9,11 +9,11 @@ export async function onRequestPost({ request, env }) {
   }
 
   const password = typeof body.password === "string" ? body.password : "";
-  if (!env.ADMIN_PASSWORD || !timingSafeStringEqual(password, env.ADMIN_PASSWORD)) {
+  if (!env.AUTH || !timingSafeStringEqual(password, env.AUTH)) {
     return json({ ok: false, error: "Invalid password" }, 401);
   }
 
-  const cookie = await createSessionCookie(env.SESSION_SECRET);
+  const cookie = await createSessionCookie(env.AUTH);
   return new Response(JSON.stringify({ ok: true }), {
     status: 200,
     headers: { "Content-Type": "application/json", "Set-Cookie": cookie },

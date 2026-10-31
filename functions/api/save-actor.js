@@ -7,7 +7,7 @@ const BRANCH = "main";
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
 export async function onRequestPost({ request, env }) {
-  if (!(await verifySession(request, env.SESSION_SECRET))) {
+  if (!(await verifySession(request, env.AUTH))) {
     return json({ error: "Unauthorized" }, 401);
   }
   if (!env.GITHUB_TOKEN) return json({ error: "GitHub not configured" }, 500);
