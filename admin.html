@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin | Favourite Actors</title>
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="icon" type="image/png" href="images/icon.png">
+    <link rel="stylesheet" type="text/css" href="styles.css">
+    <link rel="stylesheet" type="text/css" href="admin.css">
+</head>
+<body class="admin-body">
+
+    <main class="admin-wrap">
+        <h1 class="admin-title">Favourite Actors — Admin</h1>
+
+        <section id="loginSection" class="panel" hidden>
+            <h2>Sign in</h2>
+            <form id="loginForm">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" autocomplete="current-password" required>
+                <button type="submit">Sign in</button>
+                <p class="error" id="loginError" hidden></p>
+            </form>
+        </section>
+
+        <section id="appSection" class="panel" hidden>
+            <div class="top-row">
+                <div class="mode-toggle">
+                    <label><input type="radio" name="mode" value="new" checked> New actor</label>
+                    <label><input type="radio" name="mode" value="edit"> Edit existing</label>
+                </div>
+                <button type="button" id="logoutBtn" class="ghost-btn">Log out</button>
+            </div>
+
+            <select id="existingActor" hidden></select>
+
+            <form id="actorForm">
+                <label for="name">Name</label>
+                <input type="text" id="name" name="name" required>
+
+                <label for="initials">Initials</label>
+                <input type="text" id="initials" name="initials" maxlength="3">
+
+                <label for="imdb">IMDb URL</label>
+                <input type="url" id="imdb" name="imdb">
+
+                <label for="tmdb">TMDB URL</label>
+                <input type="url" id="tmdb" name="tmdb">
+
+                <label for="wiki">Wikipedia URL</label>
+                <input type="url" id="wiki" name="wiki">
+
+                <label for="grokipedia">Grokipedia URL</label>
+                <input type="url" id="grokipedia" name="grokipedia">
+
+                <label>Favourites</label>
+                <div id="favsList" class="favs-list"></div>
+                <button type="button" id="addFavBtn" class="ghost-btn">+ Add favourite</button>
+
+                <fieldset class="photo-field">
+                    <legend>Photo</legend>
+                    <div class="photo-row">
+                        <button type="button" id="searchBtn" disabled>Search images</button>
+                        <span id="searchStatus" class="status"></span>
+                    </div>
+                    <div id="resultsGrid" class="results-grid" hidden></div>
+                    <div id="selectedPreview" class="selected-preview" hidden>
+                        <img id="selectedThumb" alt="Selected photo">
+                        <span id="selectedKey"></span>
+                        <button type="button" id="clearSelectionBtn" class="ghost-btn">Clear</button>
+                    </div>
+                </fieldset>
+
+                <button type="submit" id="saveBtn" disabled>Save actor</button>
+                <p class="error" id="saveError" hidden></p>
+                <p class="success" id="saveSuccess" hidden></p>
+            </form>
+        </section>
+    </main>
+
+    <div class="lightbox" id="lightbox" hidden>
+        <div class="lightbox-inner">
+            <button type="button" class="close-btn" id="lightboxClose" aria-label="Close">&times;</button>
+            <img id="lightboxImg" alt="Full size preview">
+            <div class="lightbox-actions">
+                <label class="tick-label">
+                    <input type="checkbox" id="lightboxTick">
+                    Use this image
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <script src="admin.js"></script>
+</body>
+</html>

@@ -44,6 +44,19 @@ Plain HTML/CSS/JS — no dependencies, no package.json, no build tooling.
 
 Add an entry to `actors.json` (with a portrait in `images/`, or omit `photo` to fall back to an initials sigil) — no HTML editing needed. Give them an `imdb`/`tmdb`/`wiki`/`grokipedia` link and a `favs` list of `{ t, u }` (title + URL) for the shows/films that make them a favourite. The "N actors · N favourites" stat in `index.html`'s medallion is a hand-set string, not computed — update it manually when the counts change.
 
+## Admin (internal)
+
+`admin.html` is a password-gated form for adding/editing an actor's entry, backed by Cloudflare Pages Functions in `functions/`. Fill every field manually; for the photo, click "Search images" (Brave Search), click a thumbnail to preview it full-size, tick "Use this image" to select it. Saving fetches the chosen image, derives its filename key from the actor's name (strip all non-alphanumeric characters, e.g. "Catherine Zeta-Jones" → `CatherineZetaJones`), and commits `actors.json`, the `ASSETS` entry in `script.js`, and the new image file to `main` in one commit via the GitHub API. Not linked from the public site; disallowed in `robots.txt`.
+
+Requires these Cloudflare Pages environment variables (set as **Secrets** in the dashboard, not plaintext):
+
+- `ADMIN_PASSWORD` — the login password
+- `SESSION_SECRET` — random string used to sign the session cookie
+- `BRAVE_API_KEY` — from the [Brave Search API](https://api.search.brave.com/)
+- `GITHUB_TOKEN` — a PAT (fine-grained, scoped to this repo, Contents: Read & write)
+
+`functions/api/save-actor.js` hardcodes the repo as `megzjudge/favactors` on `main` — update those constants if the repo is renamed or moved.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
