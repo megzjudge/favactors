@@ -10,9 +10,12 @@ export async function onRequestGet({ request, env }) {
   if (!q) return json({ error: "Missing q" }, 400);
   if (!env.BRAVE_API_KEY) return json({ error: "Search not configured" }, 500);
 
+  const requestedCount = parseInt(url.searchParams.get("count"), 10);
+  const count = Math.min(Math.max(requestedCount || 60, 1), 200); // Brave's image search caps at 200
+
   const braveUrl = `https://api.search.brave.com/res/v1/images/search?q=${encodeURIComponent(
     q + " actor headshot"
-  )}&count=24&safesearch=strict`;
+  )}&count=${count}&safesearch=strict`;
 
   let res;
   try {

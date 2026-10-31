@@ -23,6 +23,7 @@
   var searchBtn = document.getElementById("searchBtn");
   var searchStatus = document.getElementById("searchStatus");
   var resultsGrid = document.getElementById("resultsGrid");
+  var seeMoreBtn = document.getElementById("seeMoreBtn");
   var selectedPreview = document.getElementById("selectedPreview");
   var selectedThumb = document.getElementById("selectedThumb");
   var selectedKey = document.getElementById("selectedKey");
@@ -140,6 +141,7 @@
     favsList.innerHTML = "";
     (actor.favs || []).forEach(addFavRow);
     if (favsList.children.length === 0) addFavRow();
+    resetSearch();
     clearSelection();
     updateSearchBtnState();
   }
@@ -148,8 +150,17 @@
     actorForm.reset();
     favsList.innerHTML = "";
     addFavRow();
+    resetSearch();
     clearSelection();
     updateSearchBtnState();
+  }
+
+  function resetSearch() {
+    searchResults = [];
+    resultsGrid.innerHTML = "";
+    resultsGrid.hidden = true;
+    seeMoreBtn.hidden = true;
+    searchStatus.textContent = "";
   }
 
   /* ---------- favs rows ---------- */
@@ -201,37 +212,78 @@
     searchBtn.disabled = nameInput.value.trim().length === 0;
   }
 
+  var lastSearchCount = 60;
+
   searchBtn.addEventListener("click", function () {
     var q = nameInput.value.trim();
     if (!q) return;
     searchStatus.textContent = "Searching…";
     resultsGrid.hidden = true;
     resultsGrid.innerHTML = "";
+    seeMoreBtn.hidden = true;
     searchBtn.disabled = true;
+    searchResults = [];
+    lastSearchCount = 60;
 
-    fetch("/api/image-search?q=" + encodeURIComponent(q))
-      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
-      .then(function (res) {
-        searchBtn.disabled = false;
-        if (!res.ok) {
-          searchStatus.textContent = res.data.error || "Search failed";
-          return;
-        }
-        searchResults = res.data.results || [];
-        searchStatus.textContent = searchResults.length
-          ? searchResults.length + " results"
-          : "No results";
-        renderResults();
-      })
-      .catch(function () {
-        searchBtn.disabled = false;
-        searchStatus.textContent = "Search failed";
-      });
+    runSearch(q, lastSearchCount, function (ok, results, error) {
+      searchBtn.disabled = false;
+      if (!ok) {
+        searchStatus.textContent = error || "Search failed";
+        return;
+      }
+      searchResults = results;
+      searchStatus.textContent = searchResults.length
+        ? searchResults.length + " results"
+        : "No results";
+      renderAll();
+      seeMoreBtn.hidden = searchResults.length === 0;
+    });
   });
 
-  function renderResults() {
+  seeMoreBtn.addEventListener("click", function () {
+    var q = nameInput.value.trim();
+    if (!q) return;
+    seeMoreBtn.disabled = true;
+    seeMoreBtn.textContent = "Loading…";
+    lastSearchCount = Math.min(lastSearchCount + 60, 200);
+
+    runSearch(q, lastSearchCount, function (ok, results, error) {
+      seeMoreBtn.disabled = false;
+      seeMoreBtn.textContent = "See more";
+      if (!ok) {
+        searchStatus.textContent = error || "Search failed";
+        return;
+      }
+      var seen = {};
+      searchResults.forEach(function (r) { seen[r.full] = true; });
+      var added = 0;
+      results.forEach(function (r) {
+        if (!seen[r.full]) {
+          seen[r.full] = true;
+          searchResults.push(r);
+          added++;
+        }
+      });
+      searchStatus.textContent = searchResults.length + " results";
+      renderAll();
+      // Brave's image search has no real pagination — a bigger count can return
+      // the exact same set, so if nothing new came back, stop offering more.
+      seeMoreBtn.hidden = added === 0 || lastSearchCount >= 200;
+    });
+  });
+
+  function runSearch(q, count, cb) {
+    fetch("/api/image-search?q=" + encodeURIComponent(q) + "&count=" + count)
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+      .then(function (res) {
+        if (!res.ok) { cb(false, null, res.data.error); return; }
+        cb(true, res.data.results || [], null);
+      })
+      .catch(function () { cb(false, null, "Search failed"); });
+  }
+
+  function renderAll() {
     resultsGrid.innerHTML = "";
-    resultsGrid.hidden = searchResults.length === 0;
     searchResults.forEach(function (result, idx) {
       var cell = document.createElement("div");
       cell.className = "result-thumb";
@@ -249,8 +301,12 @@
       cell.appendChild(img);
       cell.appendChild(badge);
       cell.addEventListener("click", function () { openLightbox(result, cell); });
+      if (selectedImage && selectedImage.full === result.full) {
+        cell.classList.add("is-selected");
+      }
       resultsGrid.appendChild(cell);
     });
+    resultsGrid.hidden = searchResults.length === 0;
   }
 
   /* ---------- lightbox ---------- */
