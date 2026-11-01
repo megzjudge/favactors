@@ -35,8 +35,15 @@
 
   var lightbox = document.getElementById("lightbox");
   var lightboxImg = document.getElementById("lightboxImg");
-  var lightboxTick = document.getElementById("lightboxTick");
   var lightboxClose = document.getElementById("lightboxClose");
+  var previewStage = document.getElementById("previewStage");
+  var startCropBtn = document.getElementById("startCropBtn");
+  var cropStage = document.getElementById("cropStage");
+  var cropViewport = document.getElementById("cropViewport");
+  var cropImg = document.getElementById("cropImg");
+  var zoomRange = document.getElementById("zoomRange");
+  var confirmCropBtn = document.getElementById("confirmCropBtn");
+  var cancelCropBtn = document.getElementById("cancelCropBtn");
 
   var allActors = [];
   var searchResults = [];
@@ -309,23 +316,37 @@
     resultsGrid.hidden = searchResults.length === 0;
   }
 
-  /* ---------- lightbox ---------- */
+  /* ---------- lightbox + crop ---------- */
+
+  var CROP_VIEWPORT = 280; // px, matches .crop-viewport in admin.css
+  var CROP_OUTPUT = 480; // px, exported square size
 
   var activeCell = null;
+  var activeResult = null;
+  var cropState = null; // { naturalW, naturalH, baseScale, scale, x, y }
+  var dragState = null;
+
+  function proxyUrl(url) {
+    return "/api/image-proxy?url=" + encodeURIComponent(url);
+  }
 
   function openLightbox(result, cell) {
     activeCell = cell;
-    lightboxImg.src = result.full;
-    lightboxTick.checked = selectedImage && selectedImage.full === result.full;
+    activeResult = result;
+    lightboxImg.src = proxyUrl(result.full);
+    previewStage.hidden = false;
+    cropStage.hidden = true;
     lightbox.hidden = false;
-    lightbox.dataset.resultFull = result.full;
-    lightbox.dataset.resultThumb = result.thumbnail;
   }
 
   function closeLightbox() {
     lightbox.hidden = true;
     lightboxImg.src = "";
+    cropImg.src = "";
+    cropState = null;
+    dragState = null;
     activeCell = null;
+    activeResult = null;
   }
 
   lightboxClose.addEventListener("click", closeLightbox);
@@ -336,24 +357,112 @@
     if (e.key === "Escape" && !lightbox.hidden) closeLightbox();
   });
 
-  lightboxTick.addEventListener("change", function () {
-    if (lightboxTick.checked) {
-      selectImage({ thumbnail: lightbox.dataset.resultThumb, full: lightbox.dataset.resultFull }, activeCell);
-      closeLightbox();
-    } else {
-      clearSelection();
-    }
+  startCropBtn.addEventListener("click", function () {
+    previewStage.hidden = true;
+    cropStage.hidden = false;
+    var src = proxyUrl(activeResult.full);
+    var loader = new Image();
+    loader.onload = function () {
+      cropImg.src = src;
+      initCropState(loader.naturalWidth, loader.naturalHeight);
+    };
+    loader.onerror = function () {
+      showError(saveError, "Could not load image for cropping");
+      previewStage.hidden = false;
+      cropStage.hidden = true;
+    };
+    loader.src = src;
   });
 
-  function selectImage(result, cell) {
-    selectedImage = result;
+  cancelCropBtn.addEventListener("click", function () {
+    previewStage.hidden = false;
+    cropStage.hidden = true;
+  });
+
+  function initCropState(naturalW, naturalH) {
+    var baseScale = Math.max(CROP_VIEWPORT / naturalW, CROP_VIEWPORT / naturalH);
+    cropState = { naturalW: naturalW, naturalH: naturalH, baseScale: baseScale, scale: baseScale };
+    var w = naturalW * baseScale, h = naturalH * baseScale;
+    cropState.x = (CROP_VIEWPORT - w) / 2;
+    cropState.y = (CROP_VIEWPORT - h) / 2;
+    zoomRange.value = 0;
+    applyCropTransform();
+  }
+
+  function clampCrop() {
+    var w = cropState.naturalW * cropState.scale;
+    var h = cropState.naturalH * cropState.scale;
+    cropState.x = Math.min(0, Math.max(CROP_VIEWPORT - w, cropState.x));
+    cropState.y = Math.min(0, Math.max(CROP_VIEWPORT - h, cropState.y));
+  }
+
+  function applyCropTransform() {
+    cropImg.style.width = cropState.naturalW * cropState.scale + "px";
+    cropImg.style.height = cropState.naturalH * cropState.scale + "px";
+    cropImg.style.left = cropState.x + "px";
+    cropImg.style.top = cropState.y + "px";
+  }
+
+  zoomRange.addEventListener("input", function () {
+    if (!cropState) return;
+    var t = parseFloat(zoomRange.value);
+    var newScale = cropState.baseScale * (1 + t * 2); // up to 3x baseScale
+    var centre = CROP_VIEWPORT / 2;
+    var natX = (centre - cropState.x) / cropState.scale;
+    var natY = (centre - cropState.y) / cropState.scale;
+    cropState.scale = newScale;
+    cropState.x = centre - natX * newScale;
+    cropState.y = centre - natY * newScale;
+    clampCrop();
+    applyCropTransform();
+  });
+
+  cropViewport.addEventListener("pointerdown", function (e) {
+    if (!cropState) return;
+    dragState = { startX: e.clientX, startY: e.clientY, origX: cropState.x, origY: cropState.y };
+    cropViewport.setPointerCapture(e.pointerId);
+  });
+  cropViewport.addEventListener("pointermove", function (e) {
+    if (!dragState || !cropState) return;
+    cropState.x = dragState.origX + (e.clientX - dragState.startX);
+    cropState.y = dragState.origY + (e.clientY - dragState.startY);
+    clampCrop();
+    applyCropTransform();
+  });
+  function endDrag() { dragState = null; }
+  cropViewport.addEventListener("pointerup", endDrag);
+  cropViewport.addEventListener("pointercancel", endDrag);
+
+  confirmCropBtn.addEventListener("click", function () {
+    if (!cropState) return;
+    var canvas = document.createElement("canvas");
+    canvas.width = CROP_OUTPUT;
+    canvas.height = CROP_OUTPUT;
+    var ctx = canvas.getContext("2d");
+    var sSize = CROP_VIEWPORT / cropState.scale;
+    var sx = -cropState.x / cropState.scale;
+    var sy = -cropState.y / cropState.scale;
+    ctx.drawImage(cropImg, sx, sy, sSize, sSize, 0, 0, CROP_OUTPUT, CROP_OUTPUT);
+    canvas.toBlob(function (blob) {
+      if (!blob) { showError(saveError, "Crop failed — try again"); return; }
+      var reader = new FileReader();
+      reader.onload = function () {
+        finalizeSelection(reader.result.split(",")[1]);
+      };
+      reader.readAsDataURL(blob);
+    }, "image/jpeg", 0.92);
+  });
+
+  function finalizeSelection(base64) {
+    selectedImage = { thumbnail: activeResult.thumbnail, full: activeResult.full, imageData: base64 };
     Array.prototype.forEach.call(resultsGrid.children, function (el) {
-      el.classList.toggle("is-selected", el === cell);
+      el.classList.toggle("is-selected", el === activeCell);
     });
-    selectedThumb.src = result.thumbnail;
+    selectedThumb.src = "data:image/jpeg;base64," + base64;
     selectedKey.textContent = sanitizeKey(nameInput.value.trim() || "") || "(enter a name)";
     selectedPreview.hidden = false;
     updateSaveBtnState();
+    closeLightbox();
   }
 
   function clearSelection() {
@@ -388,7 +497,7 @@
       wiki: wikiInput.value.trim(),
       grokipedia: grokipediaInput.value.trim(),
       favs: collectFavs(),
-      imageUrl: selectedImage.full,
+      imageData: selectedImage.imageData,
     };
 
     saveBtn.disabled = true;

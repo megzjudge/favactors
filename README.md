@@ -46,7 +46,7 @@ Add an entry to `actors.json` (with a portrait in `images/`, or omit `photo` to 
 
 ## Admin (internal)
 
-`admin.html` is a password-gated form for adding/editing an actor's entry, backed by Cloudflare Pages Functions in `functions/`. Fill every field manually; for the photo, click "Search images" (Brave Search), click a thumbnail to preview it full-size, tick "Use this image" to select it. Saving fetches the chosen image, derives its filename key from the actor's name (strip all non-alphanumeric characters, e.g. "Catherine Zeta-Jones" → `CatherineZetaJones`), and commits `actors.json`, the `ASSETS` entry in `script.js`, and the new image file to `main` in one commit via the GitHub API. Not linked from the public site; disallowed in `robots.txt`.
+`admin.html` is a password-gated form for adding/editing an actor's entry, backed by Cloudflare Pages Functions in `functions/`. Fill every field manually; for the photo, click "Search images" (Brave Search), click a thumbnail to open it full-size, then "Crop & use this image" to pan/zoom it into a square crop (exported client-side via `<canvas>`, proxied same-origin through `functions/api/image-proxy.js` so cross-origin images don't taint the canvas). Saving sends the cropped JPEG straight to the backend — no server-side fetch of the original URL — deriving its filename key from the actor's name (strip all non-alphanumeric characters, e.g. "Catherine Zeta-Jones" → `CatherineZetaJones`), and commits `actors.json`, the `ASSETS` entry in `script.js`, and the new image file to `main` in one commit via the GitHub API. Not linked from the public site; disallowed in `robots.txt`.
 
 Requires these Cloudflare Pages environment variables (set as **Secrets** in the dashboard, not plaintext):
 

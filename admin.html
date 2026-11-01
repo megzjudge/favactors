@@ -83,12 +83,23 @@
     <div class="lightbox" id="lightbox" hidden>
         <div class="lightbox-inner">
             <button type="button" class="close-btn" id="lightboxClose" aria-label="Close">&times;</button>
-            <img id="lightboxImg" alt="Full size preview">
-            <div class="lightbox-actions">
-                <label class="tick-label">
-                    <input type="checkbox" id="lightboxTick">
-                    Use this image
-                </label>
+
+            <div id="previewStage">
+                <img id="lightboxImg" alt="Full size preview">
+                <div class="lightbox-actions">
+                    <button type="button" id="startCropBtn">Crop &amp; use this image</button>
+                </div>
+            </div>
+
+            <div id="cropStage" hidden>
+                <div class="crop-viewport" id="cropViewport">
+                    <img id="cropImg" alt="">
+                </div>
+                <input type="range" id="zoomRange" min="0" max="1" step="0.001" value="0">
+                <div class="lightbox-actions">
+                    <button type="button" id="confirmCropBtn">Use this crop</button>
+                    <button type="button" id="cancelCropBtn" class="ghost-btn">Back</button>
+                </div>
             </div>
         </div>
     </div>

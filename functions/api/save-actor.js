@@ -20,33 +20,24 @@ export async function onRequestPost({ request, env }) {
   }
 
   const name = (body.name || "").trim();
-  const imageUrl = (body.imageUrl || "").trim();
+  const imageData = (body.imageData || "").trim();
   if (!name) return json({ error: "Name is required" }, 400);
-  if (!imageUrl) return json({ error: "No image selected" }, 400);
+  if (!imageData) return json({ error: "No cropped image received" }, 400);
 
-  let imgRes;
+  // imageData is a JPEG already cropped client-side (see admin.js), base64-encoded with no data: prefix.
+  let imageByteLength;
   try {
-    imgRes = await fetch(imageUrl, { headers: { "User-Agent": "Mozilla/5.0" } });
-  } catch (e) {
-    return json({ error: "Could not fetch selected image: " + e.message }, 400);
+    imageByteLength = atob(imageData).length;
+  } catch {
+    return json({ error: "Cropped image data is not valid base64" }, 400);
   }
-  if (!imgRes.ok) return json({ error: `Could not fetch selected image (${imgRes.status})` }, 400);
-
-  const contentType = imgRes.headers.get("content-type") || "";
-  if (!contentType.startsWith("image/")) {
-    return json({ error: "Selected URL did not return an image" }, 400);
+  if (imageByteLength > MAX_IMAGE_BYTES) {
+    return json({ error: "Cropped image too large" }, 400);
   }
 
-  const buf = await imgRes.arrayBuffer();
-  if (buf.byteLength > MAX_IMAGE_BYTES) {
-    return json({ error: "Image too large (max 8MB) — pick another" }, 400);
-  }
-
-  const ext = extFromContentType(contentType);
   const key = sanitizeKey(name);
   if (!key) return json({ error: "Name produced an empty key" }, 400);
-  const imagePath = `images/${key}.${ext}`;
-  const imageBase64 = arrayBufferToBase64(buf);
+  const imagePath = `images/${key}.jpg`;
 
   let actorsFile, scriptFile;
   try {
@@ -105,7 +96,7 @@ export async function onRequestPost({ request, env }) {
       [
         { path: "actors.json", content: actorsJsonText, encoding: "utf-8" },
         { path: "script.js", content: scriptText, encoding: "utf-8" },
-        { path: imagePath, content: imageBase64, encoding: "base64" },
+        { path: imagePath, content: imageData, encoding: "base64" },
       ],
       `admin: ${existingIdx >= 0 ? "update" : "add"} ${name}`
     );
@@ -118,13 +109,6 @@ export async function onRequestPost({ request, env }) {
 
 function sanitizeKey(name) {
   return name.replace(/[^A-Za-z0-9]/g, "");
-}
-
-function extFromContentType(ct) {
-  if (ct.includes("png")) return "png";
-  if (ct.includes("webp")) return "webp";
-  if (ct.includes("gif")) return "gif";
-  return "jpg";
 }
 
 function patchAssets(scriptText, key, path) {
@@ -143,16 +127,6 @@ function patchAssets(scriptText, key, path) {
 
   const insertion = `,\n  "${key}": "${path}"`;
   return scriptText.slice(0, closeIdx) + insertion + scriptText.slice(closeIdx);
-}
-
-function arrayBufferToBase64(buf) {
-  let binary = "";
-  const bytes = new Uint8Array(buf);
-  const chunk = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunk) {
-    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
-  }
-  return btoa(binary);
 }
 
 function json(obj, status = 200) {
