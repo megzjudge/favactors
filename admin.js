@@ -17,6 +17,10 @@
   var tmdbInput = document.getElementById("tmdb");
   var wikiInput = document.getElementById("wiki");
   var grokipediaInput = document.getElementById("grokipedia");
+  var autofillLinksBtn = document.getElementById("autofillLinksBtn");
+  var autofillStatus = document.getElementById("autofillStatus");
+  var searchImdbBtn = document.getElementById("searchImdbBtn");
+  var openUrlBtns = document.querySelectorAll(".open-url-btn");
   var favsList = document.getElementById("favsList");
   var addFavBtn = document.getElementById("addFavBtn");
   var pullCreditsBtn = document.getElementById("pullCreditsBtn");
@@ -161,6 +165,8 @@
     clearSelection();
     updateSearchBtnState();
     updatePullCreditsBtnState();
+    updateNameDependentBtns();
+    autofillStatus.textContent = "";
   }
 
   function resetForm() {
@@ -172,6 +178,8 @@
     clearSelection();
     updateSearchBtnState();
     updatePullCreditsBtnState();
+    updateNameDependentBtns();
+    autofillStatus.textContent = "";
   }
 
   function resetSearch() {
@@ -224,6 +232,59 @@
     });
     return favs;
   }
+
+  /* ---------- link autofill ---------- */
+
+  nameInput.addEventListener("input", updateNameDependentBtns);
+  function updateNameDependentBtns() {
+    var hasName = nameInput.value.trim().length > 0;
+    autofillLinksBtn.disabled = !hasName;
+    searchImdbBtn.disabled = !hasName;
+  }
+
+  autofillLinksBtn.addEventListener("click", function () {
+    var name = nameInput.value.trim();
+    if (!name) return;
+    autofillStatus.textContent = "Looking up…";
+    autofillLinksBtn.disabled = true;
+
+    fetch("/api/lookup-links?name=" + encodeURIComponent(name))
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+      .then(function (res) {
+        autofillLinksBtn.disabled = false;
+        if (!res.ok) {
+          autofillStatus.textContent = res.data.error || "Lookup failed";
+          return;
+        }
+        var found = [];
+        if (res.data.tmdb) { tmdbInput.value = res.data.tmdb; found.push("TMDB"); }
+        if (res.data.wiki) { wikiInput.value = res.data.wiki; found.push("Wikipedia"); }
+        if (res.data.grokipedia) { grokipediaInput.value = res.data.grokipedia; found.push("Grokipedia"); }
+        autofillStatus.textContent = found.length
+          ? "Filled " + found.join(", ") + " — best guesses, please check them"
+          : "No matches found";
+      })
+      .catch(function () {
+        autofillLinksBtn.disabled = false;
+        autofillStatus.textContent = "Lookup failed";
+      });
+  });
+
+  searchImdbBtn.addEventListener("click", function () {
+    var name = nameInput.value.trim();
+    if (!name) return;
+    window.open("https://www.imdb.com/find/?q=" + encodeURIComponent(name) + "&s=nm", "_blank", "noopener,noreferrer");
+  });
+
+  Array.prototype.forEach.call(openUrlBtns, function (btn) {
+    btn.addEventListener("click", function () {
+      var targetId = btn.dataset.target;
+      var input = document.getElementById(targetId);
+      var value = input && input.value.trim();
+      if (!value) return;
+      window.open(value, "_blank", "noopener,noreferrer");
+    });
+  });
 
   /* ---------- TMDB filmography ---------- */
 

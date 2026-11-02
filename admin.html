@@ -42,17 +42,35 @@
                 <label for="initials">Initials</label>
                 <input type="text" id="initials" name="initials" maxlength="3">
 
+                <div class="autofill-row">
+                    <button type="button" id="autofillLinksBtn" class="ghost-btn" disabled>Autofill links</button>
+                    <span id="autofillStatus" class="status"></span>
+                </div>
+
                 <label for="imdb">IMDb URL</label>
-                <input type="url" id="imdb" name="imdb">
+                <div class="url-field-row">
+                    <input type="url" id="imdb" name="imdb">
+                    <button type="button" class="open-url-btn ghost-btn" data-target="imdb">Open ↗</button>
+                    <button type="button" id="searchImdbBtn" class="ghost-btn" disabled>Search ↗</button>
+                </div>
 
                 <label for="tmdb">TMDB URL</label>
-                <input type="url" id="tmdb" name="tmdb">
+                <div class="url-field-row">
+                    <input type="url" id="tmdb" name="tmdb">
+                    <button type="button" class="open-url-btn ghost-btn" data-target="tmdb">Open ↗</button>
+                </div>
 
                 <label for="wiki">Wikipedia URL</label>
-                <input type="url" id="wiki" name="wiki">
+                <div class="url-field-row">
+                    <input type="url" id="wiki" name="wiki">
+                    <button type="button" class="open-url-btn ghost-btn" data-target="wiki">Open ↗</button>
+                </div>
 
                 <label for="grokipedia">Grokipedia URL</label>
-                <input type="url" id="grokipedia" name="grokipedia">
+                <div class="url-field-row">
+                    <input type="url" id="grokipedia" name="grokipedia">
+                    <button type="button" class="open-url-btn ghost-btn" data-target="grokipedia">Open ↗</button>
+                </div>
 
                 <label>Favourites</label>
                 <div id="favsList" class="favs-list"></div>

@@ -50,6 +50,23 @@ input:focus-visible{
   outline-offset: 1px;
 }
 
+.autofill-row{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.url-field-row{
+  display: flex;
+  gap: 8px;
+}
+.url-field-row input{ flex: 1; }
+.url-field-row button{
+  padding: 10px 12px;
+  white-space: nowrap;
+}
+
 button{
   font: inherit;
   cursor: pointer;
