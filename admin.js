@@ -19,11 +19,18 @@
   var grokipediaInput = document.getElementById("grokipedia");
   var favsList = document.getElementById("favsList");
   var addFavBtn = document.getElementById("addFavBtn");
+  var pullCreditsBtn = document.getElementById("pullCreditsBtn");
+  var creditsStatus = document.getElementById("creditsStatus");
+  var creditsList = document.getElementById("creditsList");
+  var addSelectedCreditsBtn = document.getElementById("addSelectedCreditsBtn");
 
   var searchBtn = document.getElementById("searchBtn");
   var searchStatus = document.getElementById("searchStatus");
   var resultsGrid = document.getElementById("resultsGrid");
   var seeMoreBtn = document.getElementById("seeMoreBtn");
+  var manualUrlInput = document.getElementById("manualUrlInput");
+  var manualUrlBtn = document.getElementById("manualUrlBtn");
+  var manualUrlError = document.getElementById("manualUrlError");
   var selectedPreview = document.getElementById("selectedPreview");
   var selectedThumb = document.getElementById("selectedThumb");
   var selectedKey = document.getElementById("selectedKey");
@@ -48,6 +55,7 @@
   var allActors = [];
   var searchResults = [];
   var selectedImage = null; // { thumbnail, full }
+  var currentCredits = [];
 
   function sanitizeKey(name) {
     return name.replace(/[^A-Za-z0-9]/g, "");
@@ -149,8 +157,10 @@
     (actor.favs || []).forEach(addFavRow);
     if (favsList.children.length === 0) addFavRow();
     resetSearch();
+    resetCredits();
     clearSelection();
     updateSearchBtnState();
+    updatePullCreditsBtnState();
   }
 
   function resetForm() {
@@ -158,8 +168,10 @@
     favsList.innerHTML = "";
     addFavRow();
     resetSearch();
+    resetCredits();
     clearSelection();
     updateSearchBtnState();
+    updatePullCreditsBtnState();
   }
 
   function resetSearch() {
@@ -168,6 +180,7 @@
     resultsGrid.hidden = true;
     seeMoreBtn.hidden = true;
     searchStatus.textContent = "";
+    manualUrlError.hidden = true;
   }
 
   /* ---------- favs rows ---------- */
@@ -211,6 +224,89 @@
     });
     return favs;
   }
+
+  /* ---------- TMDB filmography ---------- */
+
+  tmdbInput.addEventListener("input", updatePullCreditsBtnState);
+  function updatePullCreditsBtnState() {
+    pullCreditsBtn.disabled = tmdbInput.value.trim().length === 0;
+  }
+
+  function resetCredits() {
+    currentCredits = [];
+    creditsList.innerHTML = "";
+    creditsList.hidden = true;
+    addSelectedCreditsBtn.hidden = true;
+    creditsStatus.textContent = "";
+  }
+
+  pullCreditsBtn.addEventListener("click", function () {
+    var tmdbUrl = tmdbInput.value.trim();
+    if (!tmdbUrl) return;
+    creditsStatus.textContent = "Loading…";
+    creditsList.hidden = true;
+    addSelectedCreditsBtn.hidden = true;
+    pullCreditsBtn.disabled = true;
+
+    fetch("/api/tmdb-credits?tmdbUrl=" + encodeURIComponent(tmdbUrl))
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+      .then(function (res) {
+        pullCreditsBtn.disabled = false;
+        if (!res.ok) {
+          creditsStatus.textContent = res.data.error || "Failed to load credits";
+          return;
+        }
+        currentCredits = res.data.credits || [];
+        creditsStatus.textContent = currentCredits.length
+          ? currentCredits.length + " credits"
+          : "No credits found";
+        renderCredits();
+      })
+      .catch(function () {
+        pullCreditsBtn.disabled = false;
+        creditsStatus.textContent = "Failed to load credits";
+      });
+  });
+
+  function renderCredits() {
+    creditsList.innerHTML = "";
+    var existingUrls = {};
+    Array.prototype.forEach.call(favsList.children, function (row) {
+      var u = row.querySelector(".fav-url").value.trim();
+      if (u) existingUrls[u] = true;
+    });
+
+    currentCredits.forEach(function (credit, idx) {
+      var label = document.createElement("label");
+      label.className = "credit-row";
+
+      var cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.dataset.idx = idx;
+      var alreadyAdded = !!existingUrls[credit.url];
+      if (alreadyAdded) cb.disabled = true;
+
+      var text = document.createElement("span");
+      text.textContent = credit.title + (credit.year ? " (" + credit.year + ")" : "") +
+        (alreadyAdded ? " — already added" : "");
+
+      label.appendChild(cb);
+      label.appendChild(text);
+      creditsList.appendChild(label);
+    });
+    creditsList.hidden = currentCredits.length === 0;
+    addSelectedCreditsBtn.hidden = currentCredits.length === 0;
+  }
+
+  addSelectedCreditsBtn.addEventListener("click", function () {
+    var checked = creditsList.querySelectorAll('input[type="checkbox"]:checked');
+    Array.prototype.forEach.call(checked, function (cb) {
+      var credit = currentCredits[Number(cb.dataset.idx)];
+      if (!credit) return;
+      addFavRow({ t: credit.title + (credit.year ? " (" + credit.year + ")" : ""), u: credit.url });
+    });
+    renderCredits();
+  });
 
   /* ---------- image search ---------- */
 
@@ -315,6 +411,26 @@
     });
     resultsGrid.hidden = searchResults.length === 0;
   }
+
+  /* ---------- manual URL fallback ---------- */
+
+  manualUrlBtn.addEventListener("click", function () {
+    manualUrlError.hidden = true;
+    var raw = manualUrlInput.value.trim();
+    if (!raw) return;
+    var parsed;
+    try {
+      parsed = new URL(raw);
+    } catch {
+      showError(manualUrlError, "Not a valid URL");
+      return;
+    }
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      showError(manualUrlError, "URL must be http(s)");
+      return;
+    }
+    openLightbox({ thumbnail: raw, full: raw, title: "Manual URL" }, null);
+  });
 
   /* ---------- lightbox + crop ---------- */
 

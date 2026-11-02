@@ -46,12 +46,18 @@ Add an entry to `actors.json` (with a portrait in `images/`, or omit `photo` to 
 
 ## Admin (internal)
 
-`admin.html` is a password-gated form for adding/editing an actor's entry, backed by Cloudflare Pages Functions in `functions/`. Fill every field manually; for the photo, click "Search images" (Brave Search), click a thumbnail to open it full-size, then "Crop & use this image" to pan/zoom it into a square crop (exported client-side via `<canvas>`, proxied same-origin through `functions/api/image-proxy.js` so cross-origin images don't taint the canvas). Saving sends the cropped JPEG straight to the backend — no server-side fetch of the original URL — deriving its filename key from the actor's name (strip all non-alphanumeric characters, e.g. "Catherine Zeta-Jones" → `CatherineZetaJones`), and commits `actors.json`, the `ASSETS` entry in `script.js`, and the new image file to `main` in one commit via the GitHub API. Not linked from the public site; disallowed in `robots.txt`.
+`admin.html` is a password-gated form for adding/editing an actor's entry, backed by Cloudflare Pages Functions in `functions/`. Fill every field manually, with two pulls to cut down on typing:
+
+- **Photo**: click "Search images" (Brave Search), click a thumbnail to open it full-size, then "Crop & use this image" to pan/zoom it into a square crop (exported client-side via `<canvas>`, proxied same-origin through `functions/api/image-proxy.js` so cross-origin images don't taint the canvas). There's also a manual "paste an image URL" fallback that feeds into the same crop flow, for when the search results aren't good. Saving sends the cropped JPEG straight to the backend — no server-side fetch of the original URL.
+- **Favourites**: once the TMDB URL field is filled in, "Pull filmography from TMDB" lists the actor's combined cast credits (via `functions/api/tmdb-credits.js`, resolving the person ID from the TMDB URL) so you can tick which ones to add as favourites instead of typing each title/URL by hand. IMDb was tried first but blocks server-side fetches outright (confirmed: even single-title lookups return an empty 202) — TMDB's API is free, reliable, and already has a URL stored per actor, so it's the stand-in both for this and for the links on the pulled credits.
+
+Saving derives the photo's filename key from the actor's name (strip all non-alphanumeric characters, e.g. "Catherine Zeta-Jones" → `CatherineZetaJones`), and commits `actors.json`, the `ASSETS` entry in `script.js`, and the new image file to `main` in one commit via the GitHub API. Not linked from the public site; disallowed in `robots.txt`.
 
 Requires these Cloudflare Pages environment variables (set as **Secrets** in the dashboard, not plaintext):
 
 - `AUTH` — the login password (also used to sign the session cookie)
 - `BRAVE_API_KEY` — from the [Brave Search API](https://api.search.brave.com/)
+- `TMDB_API_KEY` — the "API Key (v3 auth)" from a free [TMDB account](https://www.themoviedb.org/settings/api)
 - `GITHUB_TOKEN` — a PAT (fine-grained, scoped to this repo, Contents: Read & write)
 
 `functions/api/save-actor.js` hardcodes the repo as `megzjudge/favactors` on `main` — update those constants if the repo is renamed or moved.
