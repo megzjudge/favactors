@@ -20,31 +20,13 @@ export async function onRequestPost({ request, env }) {
   }
 
   const name = (body.name || "").trim();
+  const originalName = (body.originalName || "").trim();
   const imageData = (body.imageData || "").trim();
   if (!name) return json({ error: "Name is required" }, 400);
-  if (!imageData) return json({ error: "No cropped image received" }, 400);
 
-  // imageData is a JPEG already cropped client-side (see admin.js), base64-encoded with no data: prefix.
-  let imageByteLength;
+  let actorsFile;
   try {
-    imageByteLength = atob(imageData).length;
-  } catch {
-    return json({ error: "Cropped image data is not valid base64" }, 400);
-  }
-  if (imageByteLength > MAX_IMAGE_BYTES) {
-    return json({ error: "Cropped image too large" }, 400);
-  }
-
-  const key = sanitizeKey(name);
-  if (!key) return json({ error: "Name produced an empty key" }, 400);
-  const imagePath = `images/${key}.jpg`;
-
-  let actorsFile, scriptFile;
-  try {
-    [actorsFile, scriptFile] = await Promise.all([
-      getFile(OWNER, REPO, BRANCH, "actors.json", env.GITHUB_TOKEN),
-      getFile(OWNER, REPO, BRANCH, "script.js", env.GITHUB_TOKEN),
-    ]);
+    actorsFile = await getFile(OWNER, REPO, BRANCH, "actors.json", env.GITHUB_TOKEN);
   } catch (e) {
     return json({ error: "Could not read repo files: " + e.message }, 502);
   }
@@ -54,6 +36,55 @@ export async function onRequestPost({ request, env }) {
     actors = JSON.parse(actorsFile.content);
   } catch (e) {
     return json({ error: "actors.json is not valid JSON: " + e.message }, 500);
+  }
+
+  // originalName (set when editing) targets the entry being replaced even if
+  // the name itself was also changed in this save.
+  const matchName = originalName || name;
+  const existingIdx = actors.findIndex((a) => a.name.toLowerCase() === matchName.toLowerCase());
+  const existingEntry = existingIdx >= 0 ? actors[existingIdx] : null;
+
+  if (!imageData && !existingEntry) {
+    return json({ error: "No cropped image received" }, 400);
+  }
+
+  const filesToCommit = [];
+  let key;
+
+  if (imageData) {
+    let imageByteLength;
+    try {
+      imageByteLength = atob(imageData).length;
+    } catch {
+      return json({ error: "Cropped image data is not valid base64" }, 400);
+    }
+    if (imageByteLength > MAX_IMAGE_BYTES) {
+      return json({ error: "Cropped image too large" }, 400);
+    }
+
+    key = sanitizeKey(name);
+    if (!key) return json({ error: "Name produced an empty key" }, 400);
+    const imagePath = `images/${key}.jpg`;
+
+    let scriptFile;
+    try {
+      scriptFile = await getFile(OWNER, REPO, BRANCH, "script.js", env.GITHUB_TOKEN);
+    } catch (e) {
+      return json({ error: "Could not read repo files: " + e.message }, 502);
+    }
+
+    let scriptText;
+    try {
+      scriptText = patchAssets(scriptFile.content, key, imagePath);
+    } catch (e) {
+      return json({ error: "Could not patch script.js: " + e.message }, 500);
+    }
+
+    filesToCommit.push({ path: "script.js", content: scriptText, encoding: "utf-8" });
+    filesToCommit.push({ path: imagePath, content: imageData, encoding: "base64" });
+  } else {
+    // No new photo picked — keep whatever this actor already has (possibly none).
+    key = existingEntry.photo || "";
   }
 
   const entry = {
@@ -71,20 +102,12 @@ export async function onRequestPost({ request, env }) {
       : [],
   };
 
-  const existingIdx = actors.findIndex((a) => a.name.toLowerCase() === name.toLowerCase());
   if (existingIdx >= 0) {
     actors[existingIdx] = entry;
   } else {
     actors.push(entry);
   }
-  const actorsJsonText = JSON.stringify(actors, null, 2) + "\n";
-
-  let scriptText;
-  try {
-    scriptText = patchAssets(scriptFile.content, key, imagePath);
-  } catch (e) {
-    return json({ error: "Could not patch script.js: " + e.message }, 500);
-  }
+  filesToCommit.unshift({ path: "actors.json", content: JSON.stringify(actors, null, 2) + "\n", encoding: "utf-8" });
 
   let commitSha;
   try {
@@ -93,18 +116,14 @@ export async function onRequestPost({ request, env }) {
       REPO,
       BRANCH,
       env.GITHUB_TOKEN,
-      [
-        { path: "actors.json", content: actorsJsonText, encoding: "utf-8" },
-        { path: "script.js", content: scriptText, encoding: "utf-8" },
-        { path: imagePath, content: imageData, encoding: "base64" },
-      ],
+      filesToCommit,
       `admin: ${existingIdx >= 0 ? "update" : "add"} ${name}`
     );
   } catch (e) {
     return json({ error: "Commit failed: " + e.message }, 502);
   }
 
-  return json({ ok: true, commit: commitSha, key, imagePath, updated: existingIdx >= 0 });
+  return json({ ok: true, commit: commitSha, key, updated: existingIdx >= 0 });
 }
 
 function sanitizeKey(name) {

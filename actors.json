@@ -131,7 +131,7 @@
         "u": "https://www.imdb.com/title/tt0399295/"
       },
       {
-        "t": "âª Thirty Seconds to Mars",
+        "t": "♪ Thirty Seconds to Mars",
         "u": "https://www.youtube.com/watch?v=8yvGCAvOAfM"
       }
     ]
@@ -691,15 +691,5 @@
         "u": "https://www.imdb.com/title/tt0139134/"
       }
     ]
-  },
-  {
-    "name": "Robert Downey Jr",
-    "photo": "RobertDowneyJr",
-    "initials": "",
-    "imdb": "https://www.imdb.com/name/nm0000375/",
-    "tmdb": "https://www.themoviedb.org/person/3223-robert-downey-jr",
-    "wiki": "https://en.wikipedia.org/wiki/Robert_Downey_Jr.",
-    "grokipedia": "https://grokipedia.com/page/Robert_Downey_Jr.",
-    "favs": []
   }
 ]

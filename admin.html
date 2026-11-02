@@ -26,21 +26,27 @@
 
         <section id="appSection" class="panel" hidden>
             <div class="top-row">
-                <div class="mode-toggle">
-                    <label><input type="radio" name="mode" value="new" checked> New actor</label>
-                    <label><input type="radio" name="mode" value="edit"> Edit existing</label>
-                </div>
+                <select id="actorPicker" class="actor-picker">
+                    <option value="">+ Add new actor</option>
+                </select>
                 <button type="button" id="logoutBtn" class="ghost-btn">Log out</button>
             </div>
 
-            <select id="existingActor" hidden></select>
-
             <form id="actorForm">
-                <label for="name">Name</label>
-                <input type="text" id="name" name="name" required>
+                <div class="name-and-photo-row">
+                    <div class="name-fields">
+                        <label for="name">Name</label>
+                        <input type="text" id="name" name="name" required>
 
-                <label for="initials">Initials</label>
-                <input type="text" id="initials" name="initials" maxlength="3">
+                        <label for="initials">Initials</label>
+                        <input type="text" id="initials" name="initials" maxlength="3">
+                    </div>
+                    <div class="current-photo-circle" id="currentPhotoCircle">
+                        <img id="currentPhotoImg" alt="Current photo" hidden>
+                    </div>
+                </div>
+
+                <p class="warning" id="duplicateNameWarning" hidden></p>
 
                 <div class="autofill-row">
                     <button type="button" id="autofillLinksBtn" class="ghost-btn" disabled>Autofill links</button>

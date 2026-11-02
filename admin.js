@@ -7,8 +7,9 @@
   var loginError = document.getElementById("loginError");
   var logoutBtn = document.getElementById("logoutBtn");
 
-  var modeRadios = document.querySelectorAll('input[name="mode"]');
-  var existingActorSelect = document.getElementById("existingActor");
+  var actorPicker = document.getElementById("actorPicker");
+  var currentPhotoImg = document.getElementById("currentPhotoImg");
+  var duplicateNameWarning = document.getElementById("duplicateNameWarning");
 
   var actorForm = document.getElementById("actorForm");
   var nameInput = document.getElementById("name");
@@ -60,6 +61,7 @@
   var searchResults = [];
   var selectedImage = null; // { thumbnail, full }
   var currentCredits = [];
+  var editingActor = null; // the actor object currently loaded for edit, or null when adding new
 
   function sanitizeKey(name) {
     return name.replace(/[^A-Za-z0-9]/g, "");
@@ -118,39 +120,35 @@
     fetch("/api/logout", { method: "POST" }).then(checkAuth);
   });
 
-  /* ---------- existing actors (mode: edit) ---------- */
+  /* ---------- actor picker (add new / edit existing) ---------- */
 
   function loadActorsList() {
     fetch("actors.json")
       .then(function (r) { return r.json(); })
       .then(function (data) {
         allActors = data;
-        existingActorSelect.innerHTML = '<option value="">— choose an actor —</option>';
-        data.forEach(function (a, idx) {
+        var sorted = data
+          .map(function (a, idx) { return { actor: a, idx: idx }; })
+          .sort(function (a, b) { return a.actor.name.localeCompare(b.actor.name); });
+        actorPicker.innerHTML = '<option value="">+ Add new actor</option>';
+        sorted.forEach(function (entry) {
           var opt = document.createElement("option");
-          opt.value = idx;
-          opt.textContent = a.name;
-          existingActorSelect.appendChild(opt);
+          opt.value = entry.idx;
+          opt.textContent = entry.actor.name;
+          actorPicker.appendChild(opt);
         });
       })
       .catch(function () { /* public file; non-fatal if it fails to load */ });
   }
 
-  Array.prototype.forEach.call(modeRadios, function (radio) {
-    radio.addEventListener("change", function () {
-      var isEdit = document.querySelector('input[name="mode"]:checked').value === "edit";
-      existingActorSelect.hidden = !isEdit;
-      if (!isEdit) resetForm();
-    });
-  });
-
-  existingActorSelect.addEventListener("change", function () {
-    var idx = existingActorSelect.value;
+  actorPicker.addEventListener("change", function () {
+    var idx = actorPicker.value;
     if (idx === "") { resetForm(); return; }
     populateForm(allActors[Number(idx)]);
   });
 
   function populateForm(actor) {
+    editingActor = actor;
     nameInput.value = actor.name || "";
     initialsInput.value = actor.initials || "";
     imdbInput.value = actor.imdb || "";
@@ -166,10 +164,13 @@
     updateSearchBtnState();
     updatePullCreditsBtnState();
     updateNameDependentBtns();
+    updateCurrentPhotoPreview(actor);
+    updateDuplicateWarning();
     autofillStatus.textContent = "";
   }
 
   function resetForm() {
+    editingActor = null;
     actorForm.reset();
     favsList.innerHTML = "";
     addFavRow();
@@ -179,8 +180,37 @@
     updateSearchBtnState();
     updatePullCreditsBtnState();
     updateNameDependentBtns();
+    updateCurrentPhotoPreview(null);
+    updateDuplicateWarning();
     autofillStatus.textContent = "";
   }
+
+  function updateCurrentPhotoPreview(actor) {
+    var key = actor && actor.photo;
+    currentPhotoImg.hidden = true;
+    if (!key) {
+      currentPhotoImg.src = "";
+      return;
+    }
+    currentPhotoImg.onload = function () { currentPhotoImg.hidden = false; };
+    currentPhotoImg.onerror = function () { currentPhotoImg.hidden = true; currentPhotoImg.src = ""; };
+    currentPhotoImg.src = "images/" + key + ".jpg";
+  }
+
+  function updateDuplicateWarning() {
+    if (editingActor) { duplicateNameWarning.hidden = true; return; }
+    var name = nameInput.value.trim();
+    if (!name) { duplicateNameWarning.hidden = true; return; }
+    var match = allActors.some(function (a) { return a.name.toLowerCase() === name.toLowerCase(); });
+    if (match) {
+      duplicateNameWarning.textContent = '"' + name + '" already exists — saving here will overwrite them. ' +
+        "Pick them from the dropdown above instead to edit them.";
+      duplicateNameWarning.hidden = false;
+    } else {
+      duplicateNameWarning.hidden = true;
+    }
+  }
+  nameInput.addEventListener("input", updateDuplicateWarning);
 
   function resetSearch() {
     searchResults = [];
@@ -654,7 +684,9 @@
   clearSelectionBtn.addEventListener("click", clearSelection);
 
   function updateSaveBtnState() {
-    saveBtn.disabled = !selectedImage || nameInput.value.trim().length === 0;
+    var hasName = nameInput.value.trim().length > 0;
+    var hasPhoto = !!selectedImage || !!editingActor; // editing an actor keeps their existing photo if none picked
+    saveBtn.disabled = !hasName || !hasPhoto;
   }
   nameInput.addEventListener("input", updateSaveBtnState);
 
@@ -664,17 +696,18 @@
     e.preventDefault();
     hideError(saveError);
     saveSuccess.hidden = true;
-    if (!selectedImage) return;
+    if (!selectedImage && !editingActor) return;
 
     var payload = {
       name: nameInput.value.trim(),
+      originalName: editingActor ? editingActor.name : "",
       initials: initialsInput.value.trim(),
       imdb: imdbInput.value.trim(),
       tmdb: tmdbInput.value.trim(),
       wiki: wikiInput.value.trim(),
       grokipedia: grokipediaInput.value.trim(),
       favs: collectFavs(),
-      imageData: selectedImage.imageData,
+      imageData: selectedImage ? selectedImage.imageData : "",
     };
 
     saveBtn.disabled = true;
