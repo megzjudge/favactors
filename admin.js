@@ -394,7 +394,7 @@
     Array.prototype.forEach.call(checked, function (cb) {
       var credit = currentCredits[Number(cb.dataset.idx)];
       if (!credit) return;
-      addFavRow({ t: credit.title + (credit.year ? " (" + credit.year + ")" : ""), u: credit.url });
+      addFavRow({ t: credit.title, u: credit.url });
     });
     renderCredits();
   });
