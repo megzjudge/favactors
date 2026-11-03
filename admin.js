@@ -8,6 +8,7 @@
   var logoutBtn = document.getElementById("logoutBtn");
 
   var actorPicker = document.getElementById("actorPicker");
+  var currentPhotoCircle = document.getElementById("currentPhotoCircle");
   var currentPhotoImg = document.getElementById("currentPhotoImg");
   var duplicateNameWarning = document.getElementById("duplicateNameWarning");
 
@@ -188,14 +189,31 @@
   function updateCurrentPhotoPreview(actor) {
     var key = actor && actor.photo;
     currentPhotoImg.hidden = true;
+    currentPhotoCircle.classList.remove("has-photo");
     if (!key) {
       currentPhotoImg.src = "";
       return;
     }
-    currentPhotoImg.onload = function () { currentPhotoImg.hidden = false; };
-    currentPhotoImg.onerror = function () { currentPhotoImg.hidden = true; currentPhotoImg.src = ""; };
+    currentPhotoImg.onload = function () {
+      currentPhotoImg.hidden = false;
+      currentPhotoCircle.classList.add("has-photo");
+    };
+    currentPhotoImg.onerror = function () {
+      currentPhotoImg.hidden = true;
+      currentPhotoImg.src = "";
+      currentPhotoCircle.classList.remove("has-photo");
+    };
     currentPhotoImg.src = "images/" + key + ".jpg";
   }
+
+  currentPhotoCircle.addEventListener("click", function () {
+    if (currentPhotoImg.hidden || !currentPhotoImg.src) return;
+    activeCell = null;
+    activeResult = { thumbnail: currentPhotoImg.src, full: currentPhotoImg.src, title: "Current photo" };
+    lightboxImg.src = currentPhotoImg.src; // so "Back" from the crop stage has something to show
+    lightbox.hidden = false;
+    enterCropStage(currentPhotoImg.src); // same-origin already — no proxy needed
+  });
 
   function updateDuplicateWarning() {
     if (editingActor) { duplicateNameWarning.hidden = true; return; }
@@ -564,10 +582,9 @@
     if (e.key === "Escape" && !lightbox.hidden) closeLightbox();
   });
 
-  startCropBtn.addEventListener("click", function () {
+  function enterCropStage(src) {
     previewStage.hidden = true;
     cropStage.hidden = false;
-    var src = proxyUrl(activeResult.full);
     var loader = new Image();
     loader.onload = function () {
       cropImg.src = src;
@@ -579,6 +596,10 @@
       cropStage.hidden = true;
     };
     loader.src = src;
+  }
+
+  startCropBtn.addEventListener("click", function () {
+    enterCropStage(proxyUrl(activeResult.full));
   });
 
   cancelCropBtn.addEventListener("click", function () {

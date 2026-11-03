@@ -141,6 +141,13 @@ button[type="submit"]:hover:not(:disabled),
   background: rgba(255,255,255,.04);
   border: 1px solid var(--line);
 }
+.current-photo-circle.has-photo{
+  cursor: pointer;
+}
+.current-photo-circle.has-photo:hover{
+  border-color: var(--glow);
+  box-shadow: 0 0 0 2px var(--glow-soft);
+}
 .current-photo-circle img{
   width: 100%;
   height: 100%;
