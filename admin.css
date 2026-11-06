@@ -222,6 +222,16 @@ button[type="submit"]:hover:not(:disabled),
 
 .status{ color: var(--starlight-dim); font-size: .85rem; }
 
+.external-search-row{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
 .manual-url-row{
   display: flex;
   gap: 8px;

@@ -34,6 +34,10 @@
   var searchStatus = document.getElementById("searchStatus");
   var resultsGrid = document.getElementById("resultsGrid");
   var seeMoreBtn = document.getElementById("seeMoreBtn");
+  var externalSearchLinks = document.getElementById("externalSearchLinks");
+  var googleImagesBtn = document.getElementById("googleImagesBtn");
+  var braveImagesBtn = document.getElementById("braveImagesBtn");
+  var duckduckgoImagesBtn = document.getElementById("duckduckgoImagesBtn");
   var manualUrlInput = document.getElementById("manualUrlInput");
   var manualUrlBtn = document.getElementById("manualUrlBtn");
   var manualUrlError = document.getElementById("manualUrlError");
@@ -235,6 +239,7 @@
     resultsGrid.innerHTML = "";
     resultsGrid.hidden = true;
     seeMoreBtn.hidden = true;
+    externalSearchLinks.hidden = true;
     searchStatus.textContent = "";
     manualUrlError.hidden = true;
   }
@@ -433,6 +438,7 @@
     resultsGrid.hidden = true;
     resultsGrid.innerHTML = "";
     seeMoreBtn.hidden = true;
+    externalSearchLinks.hidden = true;
     searchBtn.disabled = true;
     searchResults = [];
     lastSearchCount = 60;
@@ -441,6 +447,7 @@
       searchBtn.disabled = false;
       if (!ok) {
         searchStatus.textContent = error || "Search failed";
+        externalSearchLinks.hidden = false;
         return;
       }
       searchResults = results;
@@ -449,6 +456,7 @@
         : "No results";
       renderAll();
       seeMoreBtn.hidden = searchResults.length === 0;
+      externalSearchLinks.hidden = !seeMoreBtn.hidden;
     });
   });
 
@@ -464,6 +472,7 @@
       seeMoreBtn.textContent = "See more";
       if (!ok) {
         searchStatus.textContent = error || "Search failed";
+        externalSearchLinks.hidden = false;
         return;
       }
       var seen = {};
@@ -481,6 +490,7 @@
       // Brave's image search has no real pagination — a bigger count can return
       // the exact same set, so if nothing new came back, stop offering more.
       seeMoreBtn.hidden = added === 0 || lastSearchCount >= 200;
+      externalSearchLinks.hidden = !seeMoreBtn.hidden;
     });
   });
 
@@ -520,6 +530,32 @@
     });
     resultsGrid.hidden = searchResults.length === 0;
   }
+
+  /* ---------- external search fallbacks ---------- */
+
+  function openImageSearch(url) {
+    var name = nameInput.value.trim();
+    if (!name) return;
+    window.open(url(name), "_blank", "noopener,noreferrer");
+  }
+
+  googleImagesBtn.addEventListener("click", function () {
+    openImageSearch(function (name) {
+      return "https://www.google.com/search?tbm=isch&q=" + encodeURIComponent(name);
+    });
+  });
+
+  braveImagesBtn.addEventListener("click", function () {
+    openImageSearch(function (name) {
+      return "https://search.brave.com/images?q=" + encodeURIComponent(name);
+    });
+  });
+
+  duckduckgoImagesBtn.addEventListener("click", function () {
+    openImageSearch(function (name) {
+      return "https://duckduckgo.com/?q=" + encodeURIComponent(name) + "&iax=images&ia=images";
+    });
+  });
 
   /* ---------- manual URL fallback ---------- */
 
